@@ -23,3 +23,5 @@ RUN pnpm run build
 WORKDIR /usr/src/cool-looking-dashboard/server
 RUN python3 setup_database.py
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "80"]
+
+LABEL org.opencontainers.image.source https://github.com/CyberFlameGO/cl-dash
