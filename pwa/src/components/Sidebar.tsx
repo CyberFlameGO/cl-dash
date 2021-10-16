@@ -1,6 +1,7 @@
 import {
 	Box,
 	Button,
+	Collapse,
 	Divider,
 	Drawer,
 	IconButton,
@@ -15,51 +16,42 @@ import {
 	useMediaQuery,
 	useTheme,
 } from "@mui/material";
-import { useContext, useState } from "react";
+import { forwardRef, useContext, useState } from "react";
 
+import ArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeftSharp";
+import ArrowRightIcon from "@mui/icons-material/KeyboardArrowRightSharp";
 import CloseIcon from "@mui/icons-material/CloseSharp";
-import HomeIcon from "@mui/icons-material/HomeSharp";
-import LinkIcon from "@mui/icons-material/LinkSharp";
-import ListIcon from "@mui/icons-material/ListSharp";
-import StickyNoteIcon from "@mui/icons-material/StickyNote2Sharp";
+import LogoutIcon from "@mui/icons-material/LogoutSharp";
+import { TransitionGroup } from "react-transition-group";
 import { UserContext } from "../data";
 import { logout } from "../utils";
+import { pages } from "../pages/Dashboard";
 import { useHistory } from "react-router-dom";
 
-const pages: { text: string; slug: string; icon: JSX.Element }[] = [
-	{
-		text: "Home",
-		slug: "/",
-		icon: <HomeIcon />,
-	},
-	{
-		text: "Notes",
-		slug: "/notes",
-		icon: <StickyNoteIcon />,
-	},
-	{
-		text: "Todo lists",
-		slug: "/todos",
-		icon: <ListIcon />,
-	},
-	{
-		text: "URL Aliases",
-		slug: "/url-alias",
-		icon: <LinkIcon />,
-	},
-];
+export const sidebarWidth = 300;
+export const collapsedSidebarWidth = 73;
 
 interface SidebarProps {
 	mobileOpen: boolean;
-	onClose: () => any;
-	onOpen: () => any;
-	width: number;
+	onMobileClose: () => any;
+	onMobileOpen: () => any;
+	desktopExpanded: boolean;
+	onDesktopCollapse: () => any;
+	onDesktopExpand: () => any;
 }
 
-export function Sidebar({ mobileOpen, onClose, width, onOpen }: SidebarProps) {
+export function Sidebar({
+	mobileOpen,
+	onMobileClose,
+	onMobileOpen,
+	desktopExpanded,
+	onDesktopCollapse,
+	onDesktopExpand,
+}: SidebarProps) {
 	const [user, setUser] = useContext(UserContext);
+
 	const theme = useTheme();
-	const onMobile = !useMediaQuery(theme.breakpoints.up("md"));
+	const onDesktop = useMediaQuery(theme.breakpoints.up("md"));
 
 	const history = useHistory();
 	const [selectedPage, setSelectedPage] = useState(history.location.pathname);
@@ -70,62 +62,147 @@ export function Sidebar({ mobileOpen, onClose, width, onOpen }: SidebarProps) {
 		typeof navigator !== "undefined" &&
 		/iPad|iPhone|iPod/.test(navigator.userAgent);
 
-	const drawerContent = (
-		<Stack sx={{ flex: 1, mb: 4 }}>
+	const DrawerContent = forwardRef((_, ref) => (
+		<Stack
+			ref={ref}
+			sx={{
+				flex: 1,
+				mb: 4,
+				alignItems:
+					onDesktop && !desktopExpanded ? "center" : undefined,
+			}}
+		>
 			<Stack sx={{ p: 2 }}>
 				<Stack direction="row" alignItems="center">
-					<Typography variant="h6">CL-Dash</Typography>
-					{onMobile && (
+					{(desktopExpanded || mobileOpen) && (
+						<Typography variant="h6">CL-Dash</Typography>
+					)}
+
+					{onDesktop ? (
+						<Box sx={{ ml: "auto" }}>
+							<Tooltip
+								placement={
+									desktopExpanded ? undefined : "right"
+								}
+								title={
+									desktopExpanded
+										? "Collapse sidebar"
+										: "Expand sidebar"
+								}
+							>
+								<IconButton
+									onClick={() => {
+										if (desktopExpanded) {
+											onDesktopCollapse();
+										} else {
+											onDesktopExpand();
+										}
+									}}
+								>
+									{desktopExpanded ? (
+										<ArrowLeftIcon />
+									) : (
+										<ArrowRightIcon />
+									)}
+								</IconButton>
+							</Tooltip>
+						</Box>
+					) : (
 						<Box sx={{ ml: "auto" }}>
 							<Tooltip title="Close sidebar">
-								<IconButton onClick={onClose}>
+								<IconButton onClick={onMobileClose}>
 									<CloseIcon />
 								</IconButton>
 							</Tooltip>
 						</Box>
 					)}
 				</Stack>
-				<Typography variant="caption">Version ???</Typography>
+				{(desktopExpanded || mobileOpen) && (
+					<Typography variant="caption">Version ???</Typography>
+				)}
 			</Stack>
-			<Button
-				sx={{ mb: 2 }}
-				color="warning"
-				onClick={() => {
-					logout(user, setUser, true);
-				}}
-			>
-				Log out
-			</Button>
+			{onDesktop && !desktopExpanded ? (
+				<>
+					<Divider />
+					<Tooltip title="Log out" placement="right">
+						<IconButton
+							onClick={() => {
+								logout(user, setUser, true);
+							}}
+						>
+							<LogoutIcon />
+						</IconButton>
+					</Tooltip>
+				</>
+			) : (
+				<Button
+					sx={{ mb: 2 }}
+					color="warning"
+					onClick={() => {
+						logout(user, setUser, true);
+					}}
+				>
+					Log out
+				</Button>
+			)}
 			<Divider />
 			<List>
-				{pages.map((page) => (
-					<ListItem
-						button
-						key={page.slug}
-						onClick={() => {
-							history.push(page.slug);
-							onMobile && onClose();
-						}}
-						selected={selectedPage === page.slug}
-					>
-						<ListItemIcon>{page.icon}</ListItemIcon>
-						<ListItemText primary={page.text} />
-					</ListItem>
-				))}
+				{desktopExpanded || mobileOpen
+					? pages.map((page) => (
+							<ListItem
+								button
+								key={page.slug}
+								onClick={() => {
+									history.push(page.slug);
+									!onDesktop && onMobileClose();
+								}}
+								selected={selectedPage === page.slug}
+							>
+								<ListItemIcon>
+									<page.Icon />
+								</ListItemIcon>
+								<ListItemText primary={page.text} />
+							</ListItem>
+					  ))
+					: pages.map((page) => (
+							<Tooltip
+								title={page.text}
+								placement="right"
+								key={page.slug}
+							>
+								<ListItem
+									sx={{
+										"& > .MuiListItemIcon-root": {
+											justifyContent: "center",
+										},
+									}}
+									button
+									onClick={() => {
+										history.push(page.slug);
+										!onDesktop && onMobileClose();
+									}}
+									selected={selectedPage === page.slug}
+								>
+									<ListItemIcon>
+										<page.Icon />
+									</ListItemIcon>
+								</ListItem>
+							</Tooltip>
+					  ))}
 			</List>
 		</Stack>
-	);
+	));
 
 	return (
 		<>
-			{onMobile ? (
+			{!onDesktop ? (
 				<SwipeableDrawer
 					disableBackdropTransition={!iOS}
 					disableDiscovery={iOS}
 					anchor="left"
 					open={mobileOpen}
-					onOpen={onOpen}
-					onClose={onClose}
+					onOpen={onMobileOpen}
+					onClose={onMobileClose}
 					ModalProps={{
 						keepMounted: true, // Better open performance on mobile.
 					}}
@@ -135,7 +212,7 @@ export function Sidebar({ mobileOpen, onClose, width, onOpen }: SidebarProps) {
 
 						"& .MuiDrawer-paper": {
 							boxSizing: "border-box",
-							width: width,
+							width: sidebarWidth,
 							borderRight: (theme) =>
 								`1px solid ${theme.palette.divider}`,
 							bgcolor: (theme) => theme.palette.background.paper,
@@ -143,21 +220,33 @@ export function Sidebar({ mobileOpen, onClose, width, onOpen }: SidebarProps) {
 						},
 					}}
 				>
-					{drawerContent}
+					<DrawerContent />
 				</SwipeableDrawer>
 			) : (
-				<Drawer
-					variant="permanent"
-					sx={{
-						"& .MuiDrawer-paper": {
-							boxSizing: "border-box",
-							width: width,
-						},
-					}}
-					open
-				>
-					{drawerContent}
-				</Drawer>
+				<TransitionGroup>
+					<Collapse
+						orientation="horizontal"
+						in={desktopExpanded}
+						collapsedSize={collapsedSidebarWidth}
+					>
+						<Drawer
+							variant="permanent"
+							sx={{
+								overflowX: "hidden",
+								"& .MuiDrawer-paper": {
+									boxSizing: "border-box",
+									width: desktopExpanded
+										? sidebarWidth
+										: collapsedSidebarWidth,
+									overflowX: "hidden",
+								},
+							}}
+							open
+						>
+							<DrawerContent />
+						</Drawer>
+					</Collapse>
+				</TransitionGroup>
 			)}
 		</>
 	);
